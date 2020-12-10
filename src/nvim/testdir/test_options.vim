@@ -1,6 +1,6 @@
 " Test for options
 
-function! Test_whichwrap()
+func Test_whichwrap()
   set whichwrap=b,s
   call assert_equal('b,s', &whichwrap)
 
@@ -41,6 +41,13 @@ function Test_wildchar()
   call assert_equal("\n  wildchar=<Esc>", a)
   set wildchar&
 endfunction
+
+func Test_wildoptions()
+  set wildoptions=
+  set wildoptions+=tagfile
+  set wildoptions+=tagfile
+  call assert_equal('tagfile', &wildoptions)
+endfunc
 
 function! Test_options()
   let caught = 'ok'
@@ -260,7 +267,6 @@ func Test_set_errors()
   call assert_fails('set commentstring=x', 'E537:')
   call assert_fails('set complete=x', 'E539:')
   call assert_fails('set statusline=%{', 'E540:')
-  call assert_fails('set statusline=' . repeat("%p", 81), 'E541:')
   call assert_fails('set statusline=%(', 'E542:')
   if has('cursorshape')
     " This invalid value for 'guicursor' used to cause Vim to crash.
@@ -554,3 +560,28 @@ func Test_visualbell()
   set novisualbell
   set belloff=all
 endfunc
+
+" Test for setting option values using v:false and v:true
+func Test_opt_boolean()
+  set number&
+  set number
+  call assert_equal(1, &nu)
+  set nonu
+  call assert_equal(0, &nu)
+  let &nu = v:true
+  call assert_equal(1, &nu)
+  let &nu = v:false
+  call assert_equal(0, &nu)
+  set number&
+endfunc
+
+" Test for setting option value containing spaces with isfname+=32
+func Test_isfname_with_options()
+  set isfname+=32
+  setlocal keywordprg=:term\ help.exe
+  call assert_equal(':term help.exe', &keywordprg)
+  set isfname&
+  setlocal keywordprg&
+endfunc
+
+" vim: shiftwidth=2 sts=2 expandtab

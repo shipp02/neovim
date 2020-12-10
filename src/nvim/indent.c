@@ -295,13 +295,18 @@ int set_indent(int size, int flags)
 
   // Replace the line (unless undo fails).
   if (!(flags & SIN_UNDO) || (u_savesub(curwin->w_cursor.lnum) == OK)) {
+    const colnr_T old_offset = (colnr_T)(p - oldline);
+    const colnr_T new_offset = (colnr_T)(s - newline);
+
+    // this may free "newline"
     ml_replace(curwin->w_cursor.lnum, newline, false);
     if (!(flags & SIN_NOMARK)) {
-      extmark_splice(curbuf,
-                     (int)curwin->w_cursor.lnum-1, skipcols,
-                     0, (int)(p-oldline) - skipcols,
-                     0, (int)(s-newline) - skipcols,
-                     kExtmarkUndo);
+      extmark_splice_cols(curbuf,
+                          (int)curwin->w_cursor.lnum-1,
+                          skipcols,
+                          old_offset - skipcols,
+                          new_offset - skipcols,
+                          kExtmarkUndo);
     }
 
     if (flags & SIN_CHANGED) {
@@ -310,15 +315,14 @@ int set_indent(int size, int flags)
 
     // Correct saved cursor position if it is in this line.
     if (saved_cursor.lnum == curwin->w_cursor.lnum) {
-      if (saved_cursor.col >= (colnr_T)(p - oldline)) {
+      if (saved_cursor.col >= old_offset) {
         // Cursor was after the indent, adjust for the number of
         // bytes added/removed.
-        saved_cursor.col += ind_len - (colnr_T)(p - oldline);
-
-      } else if (saved_cursor.col >= (colnr_T)(s - newline)) {
+        saved_cursor.col += ind_len - old_offset;
+      } else if (saved_cursor.col >= new_offset) {
         // Cursor was in the indent, and is now after it, put it back
         // at the start of the indent (replacing spaces with TAB).
-        saved_cursor.col = (colnr_T)(s - newline);
+        saved_cursor.col = new_offset;
       }
     }
     retval = true;
@@ -398,10 +402,10 @@ int get_breakindent_win(win_T *wp, const char_u *line)
     prev_tick = buf_get_changedtick(wp->w_buffer);
     prev_indent = get_indent_str(line, (int)wp->w_buffer->b_p_ts, wp->w_p_list);
   }
-  bri = prev_indent + wp->w_p_brishift;
+  bri = prev_indent + wp->w_briopt_shift;
 
   // indent minus the length of the showbreak string
-  if (wp->w_p_brisbr) {
+  if (wp->w_briopt_sbr) {
     bri -= vim_strsize(p_sbr);
   }
   // Add offset for number column, if 'n' is in 'cpoptions'
@@ -410,11 +414,11 @@ int get_breakindent_win(win_T *wp, const char_u *line)
   // never indent past left window margin
   if (bri < 0) {
     bri = 0;
-  } else if (bri > eff_wwidth - wp->w_p_brimin) {
+  } else if (bri > eff_wwidth - wp->w_briopt_min) {
     // always leave at least bri_min characters on the left,
     // if text width is sufficient
-    bri = (eff_wwidth - wp->w_p_brimin < 0)
-      ? 0 : eff_wwidth - wp->w_p_brimin;
+    bri = (eff_wwidth - wp->w_briopt_min < 0)
+      ? 0 : eff_wwidth - wp->w_briopt_min;
   }
 
   return bri;
@@ -449,7 +453,8 @@ int get_expr_indent(void)
   colnr_T save_curswant;
   int save_set_curswant;
   int save_State;
-  int use_sandbox = was_set_insecurely((char_u *)"indentexpr", OPT_LOCAL);
+  int use_sandbox = was_set_insecurely(
+      curwin, (char_u *)"indentexpr", OPT_LOCAL);
 
   // Save and restore cursor position and curswant, in case it was changed
   // * via :normal commands.

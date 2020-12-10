@@ -247,10 +247,12 @@ func s:StartDebug_term(dict)
     endif
 
     let response = ''
-    for lnum in range(1,200)
-      if len(getbufline(s:gdbbuf, lnum)) > 0 && getbufline(s:gdbbuf, lnum)[0] =~ 'new-ui mi '
+    for lnum in range(1, 200)
+      let line1 = get(getbufline(s:gdbbuf, lnum), 0, '')
+      let line2 = get(getbufline(s:gdbbuf, lnum + 1), 0, '')
+      if line1 =~ 'new-ui mi '
         " response can be in the same line or the next line
-        let response = getbufline(s:gdbbuf, lnum)[0] . getbufline(s:gdbbuf, lnum + 1)[0]
+        let response = line1 . line2
         if response =~ 'Undefined command'
           echoerr 'Sorry, your gdb is too old, gdb 7.12 is required'
 	  call s:CloseBuffers()
@@ -260,10 +262,9 @@ func s:StartDebug_term(dict)
           " Success!
           break
         endif
-        if response =~ 'Reading symbols from' && response !~ 'new-ui'
-          " Reading symbols might take a while
-	  let try_count -= 1
-        endif
+      elseif line1 =~ 'Reading symbols from' && line2 !~ 'new-ui mi '
+        " Reading symbols might take a while, try more times
+        let try_count -= 1
       endif
     endfor
     if response =~ 'New UI allocated'
@@ -465,12 +466,17 @@ endfunc
 " Function called when pressing CTRL-C in the prompt buffer and when placing a
 " breakpoint.
 func s:PromptInterrupt()
-  if s:pid == 0
-    echoerr 'Cannot interrupt gdb, did not find a process ID'
+  " call ch_log('Interrupting gdb')
+  if has('win32')
+    " Using job_stop() does not work on MS-Windows, need to send SIGTRAP to
+    " the debugger program so that gdb responds again.
+    if s:pid == 0
+      echoerr 'Cannot interrupt gdb, did not find a process ID'
+    else
+      call debugbreak(s:pid)
+    endif
   else
-    "call ch_log('Interrupting gdb')
-    " Using job_stop(s:gdbjob, 'int') does not work.
-    call debugbreak(s:pid)
+    call jobstop(s:gdbjob)
   endif
 endfunc
 
@@ -645,7 +651,7 @@ func s:InstallCommands()
   command Gdb call win_gotoid(s:gdbwin)
   command Program call win_gotoid(s:ptywin)
   command Source call s:GotoSourcewinOrCreateIt()
-  " command Winbar call s:InstallWinbar()
+  command Winbar call s:InstallWinbar()
 
   " TODO: can the K mapping be restored?
   nnoremap K :Evaluate<CR>
@@ -654,6 +660,19 @@ func s:InstallCommands()
 endfunc
 
 " let s:winbar_winids = []
+
+" Install the window toolbar in the current window.
+func s:InstallWinbar()
+  " if has('menu') && &mouse != ''
+  "   nnoremenu WinBar.Step   :Step<CR>
+  "   nnoremenu WinBar.Next   :Over<CR>
+  "   nnoremenu WinBar.Finish :Finish<CR>
+  "   nnoremenu WinBar.Cont   :Continue<CR>
+  "   nnoremenu WinBar.Stop   :Stop<CR>
+  "   nnoremenu WinBar.Eval   :Evaluate<CR>
+  "   call add(s:winbar_winids, win_getid(winnr()))
+  " endif
+endfunc
 
 " Delete installed debugger commands in the current window.
 func s:DeleteCommands()
@@ -670,7 +689,7 @@ func s:DeleteCommands()
   delcommand Gdb
   delcommand Program
   delcommand Source
-  " delcommand Winbar
+  delcommand Winbar
 
   nunmap K
 
@@ -940,7 +959,7 @@ func s:GotoSourcewinOrCreateIt()
   if !win_gotoid(s:sourcewin)
     new
     let s:sourcewin = win_getid(winnr())
-    " call s:InstallWinbar()
+    call s:InstallWinbar()
   endif
 endfunc
 
@@ -971,7 +990,7 @@ func s:HandleCursor(msg)
           " TODO: find existing window
           exe 'split ' . fnameescape(fname)
           let s:sourcewin = win_getid(winnr())
-          " call s:InstallWinbar()
+          call s:InstallWinbar()
         else
           exe 'edit ' . fnameescape(fname)
         endif

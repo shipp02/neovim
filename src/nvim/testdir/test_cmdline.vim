@@ -1,5 +1,8 @@
 " Tests for editing the command line.
 
+source check.vim
+source screendump.vim
+
 func Test_complete_tab()
   call writefile(['testfile'], 'Xtestfile')
   call feedkeys(":e Xtestf\t\r", "tx")
@@ -692,6 +695,22 @@ func Test_getcmdwin_autocmd()
   augroup END
 endfunc
 
+" Test error: "E135: *Filter* Autocommands must not change current buffer"
+func Test_cmd_bang_E135()
+  new
+  call setline(1, ['a', 'b', 'c', 'd'])
+  augroup test_cmd_filter_E135
+    au!
+    autocmd FilterReadPost * help
+  augroup END
+  call assert_fails('2,3!echo "x"', 'E135:')
+
+  augroup test_cmd_filter_E135
+    au!
+  augroup END
+  %bwipe!
+endfunc
+
 func Test_verbosefile()
   set verbosefile=Xlog
   echomsg 'foo'
@@ -700,6 +719,27 @@ func Test_verbosefile()
   let log = readfile('Xlog')
   call assert_match("foo\nbar", join(log, "\n"))
   call delete('Xlog')
+endfunc
+
+func Test_verbose_option()
+  " See test/functional/legacy/cmdline_spec.lua
+  CheckScreendump
+
+  let lines =<< trim [SCRIPT]
+    command DoSomething echo 'hello' |set ts=4 |let v = '123' |echo v
+    call feedkeys("\r", 't') " for the hit-enter prompt
+    set verbose=20
+  [SCRIPT]
+  call writefile(lines, 'XTest_verbose')
+
+  let buf = RunVimInTerminal('-S XTest_verbose', {'rows': 12})
+  call term_wait(buf, 100)
+  call term_sendkeys(buf, ":DoSomething\<CR>")
+  call VerifyScreenDump(buf, 'Test_verbose_option_1', {})
+
+  " clean up
+  call StopVimInTerminal(buf)
+  call delete('XTest_verbose')
 endfunc
 
 func Test_setcmdpos()
@@ -756,6 +796,29 @@ func Test_cmdwin_feedkeys()
   call feedkeys("q:\<CR>", 'x')
 endfunc
 
+" Tests for the issues fixed in 7.4.441.
+" When 'cedit' is set to Ctrl-C, opening the command window hangs Vim
+func Test_cmdwin_cedit()
+  exe "set cedit=\<C-c>"
+  normal! :
+  call assert_equal(1, winnr('$'))
+
+  let g:cmd_wintype = ''
+  func CmdWinType()
+      let g:cmd_wintype = getcmdwintype()
+      let g:wintype = win_gettype()
+      return ''
+  endfunc
+
+  call feedkeys("\<C-c>a\<C-R>=CmdWinType()\<CR>\<CR>")
+  echo input('')
+  call assert_equal('@', g:cmd_wintype)
+  call assert_equal('command', g:wintype)
+
+  set cedit&vim
+  delfunc CmdWinType
+endfunc
+
 func Test_buffers_lastused()
   " check that buffers are sorted by time when wildmode has lastused
   edit bufc " oldest
@@ -801,3 +864,35 @@ func Test_buffers_lastused()
   bwipeout bufb
   bwipeout bufc
 endfunc
+
+func Test_cmdlineclear_tabenter()
+  " See test/functional/legacy/cmdline_spec.lua
+  CheckScreendump
+
+  let lines =<< trim [SCRIPT]
+    call setline(1, range(30))
+  [SCRIPT]
+
+  call writefile(lines, 'XtestCmdlineClearTabenter')
+  let buf = RunVimInTerminal('-S XtestCmdlineClearTabenter', #{rows: 10})
+  call term_wait(buf, 50)
+  " in one tab make the command line higher with CTRL-W -
+  call term_sendkeys(buf, ":tabnew\<cr>\<C-w>-\<C-w>-gtgt")
+  call VerifyScreenDump(buf, 'Test_cmdlineclear_tabenter', {})
+
+  call StopVimInTerminal(buf)
+  call delete('XtestCmdlineClearTabenter')
+endfunc
+
+" test that ";" works to find a match at the start of the first line
+func Test_zero_line_search()
+  new
+  call setline(1, ["1, pattern", "2, ", "3, pattern"])
+  call cursor(1,1)
+  0;/pattern/d
+  call assert_equal(["2, ", "3, pattern"], getline(1,'$'))
+  q!
+endfunc
+
+
+" vim: shiftwidth=2 sts=2 expandtab	" vim: shiftwidth=2 sts=2 expandtab

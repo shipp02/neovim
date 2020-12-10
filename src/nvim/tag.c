@@ -1182,7 +1182,7 @@ static int find_tagfunc_tags(
   if (result == FAIL) {
     return FAIL;
   }
-  if (rettv.v_type == VAR_SPECIAL && rettv.vval.v_number == VV_NULL) {
+  if (rettv.v_type == VAR_SPECIAL && rettv.vval.v_special == kSpecialVarNull) {
     tv_clear(&rettv);
     return NOTDONE;
   }
@@ -2903,7 +2903,7 @@ static int jumpto_tag(
         && curwin != curwin_save && win_valid(curwin_save)) {
       /* Return cursor to where we were */
       validate_cursor();
-      redraw_later(VALID);
+      redraw_later(curwin, VALID);
       win_enter(curwin_save, true);
     }
 

@@ -1,7 +1,7 @@
 " Vim support file to detect file types
 "
 " Maintainer:	Bram Moolenaar <Bram@vim.org>
-" Last Change:	2020 Apr 12
+" Last Change:	2020 Apr 29
 
 " Listen very carefully, I will say this only once
 if exists("did_load_filetypes")
@@ -83,6 +83,9 @@ au BufNewFile,BufRead *.gpr			setf ada
 
 " AHDL
 au BufNewFile,BufRead *.tdf			setf ahdl
+
+" AIDL
+au BufNewFile,BufRead *.aidl			setf aidl
 
 " AMPL
 au BufNewFile,BufRead *.run			setf ampl
@@ -177,7 +180,7 @@ au BufNewFile,BufRead *.at			setf m4
 au BufNewFile,BufRead *.ave			setf ave
 
 " Awk
-au BufNewFile,BufRead *.awk			setf awk
+au BufNewFile,BufRead *.awk,*.gawk		setf awk
 
 " B
 au BufNewFile,BufRead *.mch,*.ref,*.imp		setf b
@@ -233,10 +236,10 @@ au BufNewFile,BufRead */etc/blkid.tab,*/etc/blkid.tab.old   setf xml
 au BufNewFile,BufRead *bsd,*.bsdl		setf bsdl
 
 " Bazel (http://bazel.io)
-autocmd BufRead,BufNewFile *.bzl,WORKSPACE,BUILD.bazel 	setf bzl
+autocmd BufRead,BufNewFile *.bzl,*.bazel,WORKSPACE	setf bzl
 if has("fname_case")
   " There is another check for BUILD further below.
-  autocmd BufRead,BufNewFile BUILD		setf bzl
+  autocmd BufRead,BufNewFile *.BUILD,BUILD		setf bzl
 endif
 
 " C or lpc
@@ -310,7 +313,7 @@ au BufNewFile,BufRead *.css			setf css
 au BufNewFile,BufRead *.con			setf cterm
 
 " Changelog
-au BufNewFile,BufRead changelog.Debian,changelog.dch,NEWS.Debian,NEWS.dch
+au BufNewFile,BufRead changelog.Debian,changelog.dch,NEWS.Debian,NEWS.dch,*/debian/changelog
 					\	setf debchangelog
 
 au BufNewFile,BufRead [cC]hange[lL]og
@@ -458,7 +461,7 @@ au BufNewFile,BufRead *.desc			setf desc
 au BufNewFile,BufRead *.d			call dist#ft#DtraceCheck()
 
 " Desktop files
-au BufNewFile,BufRead *.desktop,.directory	setf desktop
+au BufNewFile,BufRead *.desktop,*.directory	setf desktop
 
 " Dict config
 au BufNewFile,BufRead dict.conf,.dictrc		setf dictconf
@@ -538,10 +541,13 @@ au BufNewFile,BufRead *.ecd			setf ecd
 au BufNewFile,BufRead *.e,*.E			call dist#ft#FTe()
 
 " Elinks configuration
-au BufNewFile,BufRead */etc/elinks.conf,*/.elinks/elinks.conf	setf elinks
+au BufNewFile,BufRead elinks.conf		setf elinks
 
 " ERicsson LANGuage; Yaws is erlang too
 au BufNewFile,BufRead *.erl,*.hrl,*.yaws	setf erlang
+
+" Elm
+au BufNewFile,BufRead *.elm			setf elm
 
 " Elm Filter Rules file
 au BufNewFile,BufRead filter-rules		setf elmfilt
@@ -686,12 +692,15 @@ au BufNewFile,BufRead .gtkrc,gtkrc		setf gtkrc
 au BufNewFile,BufRead *.haml			setf haml
 
 " Hamster Classic | Playground files
-au BufNewFile,BufRead *.hsc,*.hsm		setf hamster
+au BufNewFile,BufRead *.hsm	  		setf hamster
 
 " Haskell
-au BufNewFile,BufRead *.hs,*.hs-boot		setf haskell
+au BufNewFile,BufRead *.hs,*.hsc,*.hs-boot	setf haskell
 au BufNewFile,BufRead *.lhs			setf lhaskell
 au BufNewFile,BufRead *.chs			setf chaskell
+au BufNewFile,BufRead cabal.project		setf cabalproject
+au BufNewFile,BufRead $HOME/.cabal/config	setf cabalconfig
+au BufNewFile,BufRead cabal.config		setf cabalconfig
 
 " Haste
 au BufNewFile,BufRead *.ht			setf haste
@@ -880,11 +889,12 @@ au BufNewFile,BufRead *.ll			setf lifelines
 " Lilo: Linux loader
 au BufNewFile,BufRead lilo.conf			setf lilo
 
-" Lisp (*.el = ELisp, *.cl = Common Lisp, *.jl = librep Lisp)
+" Lisp (*.el = ELisp, *.cl = Common Lisp)
+" *.jl was removed, it's also used for Julia, better skip than guess wrong.
 if has("fname_case")
-  au BufNewFile,BufRead *.lsp,*.lisp,*.el,*.cl,*.jl,*.L,.emacs,.sawfishrc setf lisp
+  au BufNewFile,BufRead *.lsp,*.lisp,*.el,*.cl,*.L,.emacs,.sawfishrc setf lisp
 else
-  au BufNewFile,BufRead *.lsp,*.lisp,*.el,*.cl,*.jl,.emacs,.sawfishrc setf lisp
+  au BufNewFile,BufRead *.lsp,*.lisp,*.el,*.cl,.emacs,.sawfishrc setf lisp
 endif
 
 " SBCL implementation of Common Lisp
@@ -1082,6 +1092,9 @@ au BufNewFile,BufRead .netrc			setf netrc
 " Ninja file
 au BufNewFile,BufRead *.ninja			setf ninja
 
+" NPM RC file
+au BufNewFile,BufRead npmrc,.npmrc		setf dosini
+
 " Novell netware batch files
 au BufNewFile,BufRead *.ncf			setf ncf
 
@@ -1126,8 +1139,20 @@ au BufNewFile,BufRead *.ora			setf ora
 " Packet filter conf
 au BufNewFile,BufRead pf.conf			setf pf
 
+" Pacman Config (close enough to dosini)
+au BufNewFile,BufRead */etc/pacman.conf		setf dosini
+
+" Pacman hooks
+au BufNewFile,BufRead *.hook
+	\ if getline(1) == '[Trigger]' |
+	\   setf dosini |
+	\ endif
+
 " Pam conf
-au BufNewFile,BufRead */etc/pam.conf		setf pamconf
+au BufNewFile,BufRead */etc/pam.conf			setf pamconf
+
+" Pam environment
+au BufNewFile,BufRead pam_env.conf,.pam_environment	setf pamenv
 
 " PApp
 au BufNewFile,BufRead *.papp,*.pxml,*.pxsl	setf papp
@@ -1136,10 +1161,10 @@ au BufNewFile,BufRead *.papp,*.pxml,*.pxsl	setf papp
 au BufNewFile,BufRead */etc/passwd,*/etc/passwd-,*/etc/passwd.edit,*/etc/shadow,*/etc/shadow-,*/etc/shadow.edit,*/var/backups/passwd.bak,*/var/backups/shadow.bak setf passwd
 
 " Pascal (also *.p)
-au BufNewFile,BufRead *.pas			setf pascal
+au BufNewFile,BufRead *.pas,*.pp		setf pascal
 
-" Delphi project file
-au BufNewFile,BufRead *.dpr			setf pascal
+" Delphi or Lazarus program file
+au BufNewFile,BufRead *.dpr,*.lpr		setf pascal
 
 " PDF
 au BufNewFile,BufRead *.pdf			setf pdf
@@ -1155,6 +1180,7 @@ else
 endif
 au BufNewFile,BufRead *.plx,*.al,*.psgi		setf perl
 au BufNewFile,BufRead *.p6,*.pm6,*.pl6		setf perl6
+au BufNewFile,BufRead *.raku,*.rakumod		setf perl6
 
 " Perl, XPM or XPM2
 au BufNewFile,BufRead *.pm
@@ -1174,6 +1200,9 @@ au BufNewFile,BufRead *.pod6			setf pod6
 " Also Phtml (was used for PHP 2 in the past)
 " Also .ctp for Cake template file
 au BufNewFile,BufRead *.php,*.php\d,*.phtml,*.ctp	setf php
+
+" PHP config
+au BufNewFile,BufRead php.ini,php.ini-*		setf dosini
 
 " Pike and Cmod
 au BufNewFile,BufRead *.pike,*.pmod		setf pike
@@ -1275,6 +1304,7 @@ au BufNewFile,BufRead *.pml			setf promela
 
 " Google protocol buffers
 au BufNewFile,BufRead *.proto			setf proto
+au BufNewFile,BufRead *.pbtxt			setf pbtxt
 
 " Protocols
 au BufNewFile,BufRead */etc/protocols		setf protocols
@@ -1284,7 +1314,8 @@ au BufNewFile,BufRead *.pyx,*.pxd		setf pyrex
 
 " Python, Python Shell Startup and Python Stub Files
 " Quixote (Python-based web framework)
-au BufNewFile,BufRead *.py,*.pyw,.pythonstartup,.pythonrc,*.ptl,*.pyi  setf python
+au BufNewFile,BufRead *.py,*.pyw,.pythonstartup,.pythonrc  setf python
+au BufNewFile,BufRead *.ptl,*.pyi,SConstruct		   setf python
 
 " Radiance
 au BufNewFile,BufRead *.rad,*.mat		setf radiance
@@ -1606,10 +1637,12 @@ au BufNewFile,BufRead *.sqlj			setf sqlj
 au BufNewFile,BufRead *.sqr,*.sqi		setf sqr
 
 " OpenSSH configuration
-au BufNewFile,BufRead ssh_config,*/.ssh/config	setf sshconfig
+au BufNewFile,BufRead ssh_config,*/.ssh/config		setf sshconfig
+au BufNewFile,BufRead */etc/ssh/ssh_config.d/*.conf	setf sshconfig
 
 " OpenSSH server configuration
-au BufNewFile,BufRead sshd_config		setf sshdconfig
+au BufNewFile,BufRead sshd_config			setf sshdconfig
+au BufNewFile,BufRead */etc/ssh/sshd_config.d/*.conf	setf sshdconfig
 
 " Stata
 au BufNewFile,BufRead *.ado,*.do,*.imata,*.mata	setf stata
@@ -1640,13 +1673,16 @@ au BufNewFile,BufRead *.sil 			setf sil
 au BufNewFile,BufRead */etc/sysctl.conf,*/etc/sysctl.d/*.conf	setf sysctl
 
 " Systemd unit files
-au BufNewFile,BufRead */systemd/*.{automount,mount,path,service,socket,swap,target,timer}	setf systemd
+au BufNewFile,BufRead */systemd/*.{automount,dnssd,link,mount,netdev,network,nspawn,path,service,slice,socket,swap,target,timer}	setf systemd
 " Systemd overrides
+au BufNewFile,BufRead */etc/systemd/*.conf.d/*.conf	setf systemd
 au BufNewFile,BufRead */etc/systemd/system/*.d/*.conf	setf systemd
 au BufNewFile,BufRead */.config/systemd/user/*.d/*.conf	setf systemd
 " Systemd temp files
 au BufNewFile,BufRead */etc/systemd/system/*.d/.#*	setf systemd
+au BufNewFile,BufRead */etc/systemd/system/.#*		setf systemd
 au BufNewFile,BufRead */.config/systemd/user/*.d/.#*	setf systemd
+au BufNewFile,BufRead */.config/systemd/user/.#*	setf systemd
 
 " Synopsys Design Constraints
 au BufNewFile,BufRead *.sdc			setf sdc
@@ -1691,7 +1727,7 @@ au BufNewFile,BufRead *.latex,*.sty,*.dtx,*.ltx,*.bbl	setf tex
 au BufNewFile,BufRead *.tex			call dist#ft#FTtex()
 
 " ConTeXt
-au BufNewFile,BufRead *.mkii,*.mkiv,*.mkvi   setf context
+au BufNewFile,BufRead *.mkii,*.mkiv,*.mkvi,*.mkxl,*.mklx   setf context
 
 " Texinfo
 au BufNewFile,BufRead *.texinfo,*.texi,*.txi	setf texinfo
@@ -1700,13 +1736,16 @@ au BufNewFile,BufRead *.texinfo,*.texi,*.txi	setf texinfo
 au BufNewFile,BufRead texmf.cnf			setf texmf
 
 " Tidy config
-au BufNewFile,BufRead .tidyrc,tidyrc		setf tidy
+au BufNewFile,BufRead .tidyrc,tidyrc,tidy.conf	setf tidy
 
 " TF mud client
 au BufNewFile,BufRead *.tf,.tfrc,tfrc		setf tf
 
 " tmux configuration
 au BufNewFile,BufRead {.,}tmux*.conf		setf tmux
+
+" TOML
+au BufNewFile,BufRead *.toml			setf toml
 
 " TPP - Text Presentation Program
 au BufNewFile,BufReadPost *.tpp			setf tpp
@@ -1732,8 +1771,13 @@ au BufNewFile,BufReadPost *.tutor		setf tutor
 " TWIG files
 au BufNewFile,BufReadPost *.twig		setf twig
 
-" Typescript
-au BufNewFile,BufReadPost *.ts			setf typescript
+" Typescript or Qt translation file (which is XML)
+au BufNewFile,BufReadPost *.ts
+	\ if getline(1) =~ '<?xml' |
+	\   setf xml |
+	\ else |
+	\   setf typescript |
+	\ endif
 
 " TypeScript with React
 au BufNewFile,BufRead *.tsx			setf typescriptreact
@@ -2009,11 +2053,13 @@ au BufNewFile,BufRead bzr_log.*			setf bzr
 
 " Bazel build file
 if !has("fname_case")
-  au BufNewFile,BufRead BUILD			setf bzl
+  au BufNewFile,BufRead *.BUILD,BUILD		setf bzl
 endif
 
 " BIND zone
 au BufNewFile,BufRead */named/db.*,*/bind/db.*	call s:StarSetf('bindzone')
+
+au BufNewFile,BufRead cabal.project.*		call s:StarSetf('cabalproject')
 
 " Calendar
 au BufNewFile,BufRead */.calendar/*,
